@@ -1,9 +1,6 @@
-import Html exposing (..)
+import Html
 import Browser
-import String exposing (fromInt)
 import Array
-import List
-import Maybe
 
 import Element as El
 import Element.Border as Border
@@ -31,7 +28,7 @@ type alias Model =
 
 type alias Hrac =
   { zivot : Int
-  , sur : Maybe { x : Int, y : Int}
+  , sur : Maybe Poloha
   , kamen : Int
   , sipkaS : Bool
   , sipkaV : Bool
@@ -80,6 +77,32 @@ novyhrac =
   , tank = False
   }
 
+-- Behanie po mape
+
+type alias Poloha = { x : Int, y : Int}
+
+type alias Smer = (Poloha -> Poloha)
+
+sever : Model -> Smer
+sever {vyska} p = { p | y = modBy vyska (p.y - 1) }
+
+vychod : Model -> Smer
+vychod {sirka} p = { p | x = modBy sirka (p.x + 1) }
+
+juh : Model -> Smer
+juh {vyska} p = { p | y = modBy vyska (p.y + 1) }
+
+zapad : Model -> Smer
+zapad {sirka} p = { p | x = modBy sirka (p.x - 1) }
+
+type alias Odraz = (Smer -> Smer)
+
+odrazV : Model -> Odraz
+odrazV m s p = { x = modBy m.sirka (p.x - (s p).y + p.y), y = modBy m.vyska (p.y - (s p).x + p.x) }
+
+odrazZ : Model -> Odraz
+odrazZ m s p = { x = modBy m.sirka (p.x + (s p).y - p.y), y = modBy m.vyska (p.y + (s p).x - p.x) }
+
 
 -- UPDATE
 
@@ -87,20 +110,21 @@ type Msg
   = Prijal
   | PrijalNovy
   | PrijalNula
-  | Poloha { x: Int, y: Int }
+  | Podal
+  | UmiestnilSa Poloha
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg ({hrac, hraci} as model) = (
   let
     hracNaTahu = Maybe.withDefault novyhrac (Array.get hrac hraci)
-    podaj m = { m | hrac = modBy (Array.length hraci) (hrac + 1), faza = Podanie }
     tahaj m = { m | faza = Zaver }
   in
     case msg of
       Prijal -> { model | faza = Tah }
       PrijalNovy -> { model | hraci = Array.push novyhrac hraci, faza = Tah }
       PrijalNula -> { model | hrac = 0, faza = Tah }
-      Poloha p -> tahaj { model | hraci = Array.set hrac { hracNaTahu | sur = Just p } hraci }
+      Podal -> { model | hrac = if Array.isEmpty hraci then hrac + 1 else modBy (Array.length hraci) (hrac + 1), faza = Podanie }
+      UmiestnilSa p -> tahaj { model | hraci = Array.set hrac { hracNaTahu | sur = Just p } hraci }
   , Cmd.none)
 
 
@@ -112,7 +136,7 @@ subscriptions _ = Sub.none
 
 -- VIEW
 
-view : Model -> Html Msg
+view : Model -> Html.Html Msg
 view {hraci, hrac, faza, sirka, vyska} = (
   let
     tlacidlo farba msg =
@@ -129,14 +153,14 @@ view {hraci, hrac, faza, sirka, vyska} = (
       Podanie ->
         if hrac >= Array.length hraci then -- počítanie hráčov na začiatku hry
           El.column [ El.width El.fill, El.height El.fill ]
-            [ El.text ("Som hráč " ++ fromInt hrac) |> El.el (tlacidlo (El.rgb 0 0.6 1) PrijalNovy)
+            [ El.text ("Som hráč " ++ String.fromInt hrac) |> El.el (tlacidlo (El.rgb 0 0.6 1) PrijalNovy)
             , if hrac > 0 then
                 El.text ("Som hráč 0") |> El.el (tlacidlo (El.rgb 1 0.8 0) PrijalNula)
               else
                 El.none
             ]
         else -- nový hráč prichádza na ťah
-          El.text ("Som hráč " ++ fromInt hrac) |> El.el (tlacidlo (El.rgb 1 0.6 1) Prijal)
+          El.text ("Som hráč " ++ String.fromInt hrac) |> El.el (tlacidlo (El.rgb 1 0.6 1) Prijal)
       Tah ->
         case Array.get hrac hraci of
           Nothing -> -- TODO: chybová stránka (alebo zmena modelu, aby sme nemuseli Array.get)
@@ -148,7 +172,7 @@ view {hraci, hrac, faza, sirka, vyska} = (
                 |> List.map
                     (\y ->
                       List.range 0 (sirka - 1)
-                      |> List.map (\x -> El.el (tlacidlo (El.rgb 0 0 0) (Poloha { x = x, y = y })) El.none)
+                      |> List.map (\x -> El.el (tlacidlo (El.rgb 0 0 0) (UmiestnilSa (Poloha x y))) El.none)
                       |> El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                     )
                 |> El.column [ El.width El.fill, El.height El.fill, El.spacing 8, El.padding 8 ]
