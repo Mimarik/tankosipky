@@ -1,6 +1,9 @@
 import Html exposing (..)
 import Browser
 import String exposing (fromInt)
+import Array
+import List
+import Maybe
 
 import Element as El
 import Element.Border as Border
@@ -19,33 +22,85 @@ main = Browser.element
 -- MODEL
 
 type alias Model =
-  { hracov : Maybe Int
+  { hraci : Array.Array Hrac
   , hrac : Int
-  , prijate : Bool
+  , faza : Faza
+  , sirka : Int
+  , vyska : Int
   }
+
+type alias Hrac =
+  { zivot : Int
+  , sur : Maybe { x : Int, y : Int}
+  , kamen : Int
+  , sipkaS : Bool
+  , sipkaV : Bool
+  , sipkaJ : Bool
+  , sipkaZ : Bool
+  , mina : Int
+  , veza : Bool
+  , zrkadloV : Bool
+  , zrkadloZ : Bool
+  , radar : Bool
+  , sonar : Bool
+  , laser : Bool
+  , tank : Bool
+  }
+
+type Faza
+  = Podanie
+  | Tah
+  | Zaver
 
 init : () -> (Model, Cmd Msg)
 init _ = (
-  { hracov = Nothing
-  , hrac = 1
-  , prijate = False
+  { hraci = Array.empty
+  , hrac = 0
+  , faza = Podanie
+  , sirka = 10 -- zatiaľ napevno
+  , vyska = 10
   }, Cmd.none)
+
+novyhrac : Hrac
+novyhrac =
+  { zivot = 3
+  , sur = Nothing
+  , kamen = 10
+  , sipkaS = True
+  , sipkaV = True
+  , sipkaJ = True
+  , sipkaZ = True
+  , mina = 4
+  , veza = False
+  , zrkadloV = False
+  , zrkadloZ = False
+  , radar = False
+  , sonar = False
+  , laser = False
+  , tank = False
+  }
 
 
 -- UPDATE
 
 type Msg
   = Prijal
-  | Vsetci
+  | PrijalNovy
+  | PrijalNula
+  | Poloha { x: Int, y: Int }
 
 update : Msg -> Model -> (Model, Cmd Msg)
-update msg ({hrac, hracov} as model) = (
-  case msg of
-    Prijal ->
-      case hracov of
-        Nothing -> { model | hrac = hrac + 1 }
-        Just n -> { model | hrac = modBy n (hrac + 1) }
-    Vsetci -> { model | hrac = 0, hracov = Just (hrac + 1) }
+update msg ({hrac, hraci} as model) = (
+  let
+    hracNaTahu = Maybe.withDefault novyhrac (Array.get hrac hraci)
+    podaj m = { m | hrac = modBy (Array.length hraci) (hrac + 1), faza = Podanie }
+    tahaj m = { m | faza = Zaver }
+  in
+    case msg of
+      Prijal -> { model | faza = Tah }
+      PrijalNovy -> { model | hraci = Array.push novyhrac hraci, faza = Tah }
+      PrijalNula -> { model | hrac = 0, faza = Tah }
+      Poloha p -> tahaj { model | hraci = Array.set hrac { hracNaTahu | sur = Just p } hraci }
   , Cmd.none)
 
 
@@ -58,24 +113,47 @@ subscriptions _ = Sub.none
 -- VIEW
 
 view : Model -> Html Msg
-view {hracov, hrac, prijate} = El.layout [ Font.center ] <|
-  if prijate then
-    El.none
-  else
-    case hracov of
-      Nothing -> El.column [ El.width El.fill, El.height El.fill ]
-        [ El.el (potvrd Prijal) <| El.text ("Som hráč " ++ fromInt hrac)
-        , El.el [ onClick Vsetci ] <|  El.text ("Som hráč 0")
-        ]
-      Just _ -> El.el (potvrd Prijal) <| El.text ("Som hráč " ++ fromInt hrac)
-
-potvrd : msg -> List (El.Attribute msg)
-potvrd msg =
-  [ onClick msg
-  , El.width El.fill
-  , El.height El.fill
-  , El.padding 8
-  , Bg.color (El.rgb 0 0.6 1)
-  , Font.color (El.rgb 1 1 1)
-  , El.pointer
-  ]
+view {hraci, hrac, faza, sirka, vyska} = (
+  let
+    tlacidlo farba msg =
+      [ onClick msg
+      , El.width El.fill
+      , El.height El.fill
+      , El.padding 8
+      , Font.color (El.rgb 1 1 1)
+      , Bg.color farba
+      , El.pointer
+      ]
+  in
+    case faza of
+      Podanie ->
+        if hrac >= Array.length hraci then -- počítanie hráčov na začiatku hry
+          El.column [ El.width El.fill, El.height El.fill ]
+            [ El.text ("Som hráč " ++ fromInt hrac) |> El.el (tlacidlo (El.rgb 0 0.6 1) PrijalNovy)
+            , if hrac > 0 then
+                El.text ("Som hráč 0") |> El.el (tlacidlo (El.rgb 1 0.8 0) PrijalNula)
+              else
+                El.none
+            ]
+        else -- nový hráč prichádza na ťah
+          El.text ("Som hráč " ++ fromInt hrac) |> El.el (tlacidlo (El.rgb 1 0.6 1) Prijal)
+      Tah ->
+        case Array.get hrac hraci of
+          Nothing -> -- TODO: chybová stránka (alebo zmena modelu, aby sme nemuseli Array.get)
+            El.none
+          Just h ->
+            case h.sur of
+              Nothing -> -- umiestni sa na mape
+                List.range 0 (vyska - 1)
+                |> List.map
+                    (\y ->
+                      List.range 0 (sirka - 1)
+                      |> List.map (\x -> El.el (tlacidlo (El.rgb 0 0 0) (Poloha { x = x, y = y })) El.none)
+                      |> El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+                    )
+                |> El.column [ El.width El.fill, El.height El.fill, El.spacing 8, El.padding 8 ]
+              Just {x, y} -> -- TODO: normálne ťahy
+                El.none
+      Zaver -> -- TODO: čo hráč vidí po svojom ťahu
+        El.none
+  ) |> El.layout [ Font.center ]
