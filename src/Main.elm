@@ -27,8 +27,6 @@ type alias Model =
 
 type alias Hra =
   { hracov : Int
-  , sirka : Int
-  , vyska : Int
   , faza : Faza
   , log : List Tah
   }
@@ -37,6 +35,8 @@ type alias Hra =
 type alias Stav =
   { hraci : Array.Array Hrac
   , hrac : Int
+  , sirka : Int
+  , vyska : Int
   , mapa : Array.Array (Array.Array Policko)
   }
 
@@ -107,8 +107,18 @@ novyhrac =
   }
 
 
+novystav : Stav
+novystav =
+  { hraci = Array.empty
+  , hrac = 0
+  , sirka = 0
+  , vyska = 0
+  , mapa = Array.empty
+  }
 
--- behanie po mape
+
+
+-- BEHANIE PO MAPE
 
 
 type alias Poloha =
@@ -119,27 +129,27 @@ type alias Smer =
   Poloha -> Poloha
 
 
-smer : Hra -> Int -> Int -> Smer
+smer : Stav -> Int -> Int -> Smer
 smer { sirka, vyska } dx dy { x, y } =
   { x = modBy sirka (x + dx), y = modBy vyska (y + dy) }
 
 
-sever : Hra -> Smer
+sever : Stav -> Smer
 sever m =
   smer m 0 -1
 
 
-vychod : Hra -> Smer
+vychod : Stav -> Smer
 vychod m =
   smer m 1 0
 
 
-juh : Hra -> Smer
+juh : Stav -> Smer
 juh m =
   smer m 0 1
 
 
-zapad : Hra -> Smer
+zapad : Stav -> Smer
 zapad m =
   smer m -1 0
 
@@ -148,12 +158,12 @@ type alias Odraz =
   Smer -> Smer
 
 
-odrazV : Hra -> Odraz
+odrazV : Stav -> Odraz
 odrazV m s p =
   { x = modBy m.sirka (p.x - (s p).y + p.y), y = modBy m.vyska (p.y - (s p).x + p.x) }
 
 
-odrazZ : Hra -> Odraz
+odrazZ : Stav -> Odraz
 odrazZ m s p =
   { x = modBy m.sirka (p.x + (s p).y - p.y), y = modBy m.vyska (p.y + (s p).x - p.x) }
 
@@ -169,7 +179,9 @@ type Msg
 
 
 type Tah
-  = UmiestnilSa Poloha
+  = Zmapuj Int Int
+  | Zrod Int
+  | UmiestniSa Poloha
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -221,33 +233,40 @@ view model =
       -- TODO: úvodná obrazovka
       El.none
     Just h ->
-      case h.faza of
-        Podanie ->
-          -- nový hráč prichádza na ťah
-          El.text ("Som hráč " ++ String.fromInt hrac) |> El.el (tlacidlo (El.rgb 1 0.6 1) Prijal)
-        Dumanie ->
-          case Array.get hrac hraci of
-            Nothing ->
-              -- TODO: chybová stránka (alebo zmena modelu, aby sme nemuseli Array.get)
-              El.none
-            Just h ->
-              case h.sur of
-                Nothing ->
-                  -- umiestni sa na mape
-                  List.range 0 (vyska - 1)
-                    |> List.map
-                      (\y ->
-                        List.range 0 (sirka - 1)
-                          |> List.map (\x -> El.el (tlacidlo (El.rgb 0 0 0) (UmiestnilSa (Poloha x y))) El.none)
-                          |> El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-                      )
-                    |> El.column [ El.width El.fill, El.height El.fill, El.spacing 8, El.padding 8 ]
+      let
+        stav : Stav
+        stav =
+          List.foldl vykonaj novystav h.log
+        vykonaj t s =
+          s
+      in
+        case h.faza of
+          Podanie ->
+            -- nový hráč prichádza na ťah
+            El.text ("Som hráč " ++ String.fromInt stav.hrac) |> El.el (tlacidlo (El.rgb 1 0.6 1) Prijal)
+          Dumanie ->
+            case Array.get stav.hrac stav.hraci of
+              Nothing ->
+                -- TODO: chybová stránka (alebo zmena modelu, aby sme nemuseli Array.get)
+                El.none
+              Just hracNaTahu ->
+                case hracNaTahu.sur of
+                  Nothing ->
+                    -- umiestni sa na mape
+                    List.range 0 (stav.vyska - 1)
+                      |> List.map
+                        (\y ->
+                          List.range 0 (stav.sirka - 1)
+                            |> List.map (\x -> El.el (tlacidlo (El.rgb 0 0 0) (Tahal (UmiestniSa (Poloha x y)))) El.none)
+                            |> El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+                        )
+                      |> El.column [ El.width El.fill, El.height El.fill, El.spacing 8, El.padding 8 ]
 
-                Just { x, y } ->
-                  -- TODO: normálne ťahy
-                  El.none
-        Zaver ->
-          -- TODO: čo hráč vidí po svojom ťahu
-          El.none
+                  Just { x, y } ->
+                    -- TODO: normálne ťahy
+                    El.none
+          Zaver ->
+            -- TODO: čo hráč vidí po svojom ťahu
+            El.none
   )
     |> El.layout [ Font.center ]
