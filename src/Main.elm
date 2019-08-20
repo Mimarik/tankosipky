@@ -248,8 +248,16 @@ view model =
         modBy stav.hracov (stav.hrac - 1)
       else
         stav.hrac
-    najdi x y =
+    najdi { x, y } =
       stav.mapa |> Array.get x |> Maybe.withDefault Array.empty |> Array.get y |> Maybe.withDefault Nic
+    ukaz obj =
+      if obj == Nic then
+        El.text "Nič"
+      else
+        El.text "Niečo"
+      |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.8 0.8 0.8) ]
+    hracNaTahu =
+      stav.hraci |> Array.get aktivny |> Maybe.withDefault novyhrac
   in
     case model.faza of
       Konfiguracia n s v ->
@@ -281,28 +289,44 @@ view model =
         -- nový hráč prichádza na ťah
         El.text ("Som hráč " ++ String.fromInt aktivny) |> tlacidlo (El.rgb 0 0.6 1) Prijal
       Dumanie ->
-        -- hráč sa rozhoduje, ako potiahne
-        case Array.get aktivny stav.hraci of
+        case hracNaTahu.sur of
           Nothing ->
-            -- TODO: chybová stránka (alebo zmena modelu, aby sme nemuseli Array.get)
+            -- umiestni sa na mape
+            List.range 0 (stav.vyska - 1)
+              |> List.map
+                (\y ->
+                  List.range 0 (stav.sirka - 1)
+                    |> List.map (\x -> tlacidlo (El.rgb 0.8 0.8 0.8) (Poloha x y |> UmiestniSa |> Tahal) El.none)
+                    |> El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+                )
+              |> El.column [ El.width El.fill, El.height El.fill, El.spacing 8, El.padding 8 ]
+          Just { x, y } ->
+            -- TODO: normálne ťahy
             El.none
-          Just hracNaTahu ->
-            case hracNaTahu.sur of
-              Nothing ->
-                -- umiestni sa na mape
-                List.range 0 (stav.vyska - 1)
-                  |> List.map
-                    (\y ->
-                      List.range 0 (stav.sirka - 1)
-                        |> List.map (\x -> tlacidlo (El.rgb 1 1 1) (Poloha x y |> UmiestniSa |> Tahal) El.none)
-                        |> El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-                    )
-                  |> El.column [ El.width El.fill, El.height El.fill, El.spacing 8, El.padding 8 ]
-              Just { x, y } ->
-                -- TODO: normálne ťahy
-                El.none
       Zaver ->
-        -- TODO: čo hráč vidí po svojom ťahu
-        El.none
+        case hracNaTahu.sur of
+          Nothing ->
+            -- TODO: hráč medzičasom opäť zomrel
+            El.none
+          Just p ->
+            -- čo hráč vidí po svojom ťahu
+            El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+              [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+                [ El.el [ El.width El.fill ] El.none
+                , sever stav p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+                , El.el [ El.width El.fill ] El.none
+                ]
+              , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+                [ zapad stav p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+                , p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+                , vychod stav p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+                ]
+              , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+                [ El.el [ El.width El.fill ] El.none
+                , juh stav p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+                , El.el [ El.width El.fill ] El.none
+                ]
+              , El.text ("Podávam hráčovi " ++ String.fromInt stav.hrac) |> tlacidlo (El.rgb 0.4 0.8 0) Podal
+              ]
   )
     |> El.layout [ Font.center, Bg.color (El.rgb 0 0 0) ]
