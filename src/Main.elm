@@ -3,7 +3,7 @@ import Browser
 import Element as El
 import Element.Background as Bg
 import Element.Border as Border
-import Element.Events exposing (onClick)
+import Element.Input as Input
 import Element.Font as Font
 import Html
 
@@ -22,12 +22,7 @@ main =
 
 
 type alias Model =
-  Maybe Hra
-
-
-type alias Hra =
-  { hracov : Int
-  , faza : Faza
+  { faza : Faza
   , log : List Tah
   }
 
@@ -35,6 +30,7 @@ type alias Hra =
 type alias Stav =
   { hraci : Array.Array Hrac
   , hrac : Int
+  , hracov : Int
   , sirka : Int
   , vyska : Int
   , mapa : Array.Array (Array.Array Policko)
@@ -80,11 +76,12 @@ type Faza
   = Podanie
   | Dumanie
   | Zaver
+  | Konfiguracia Int Int Int
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-  ( Nothing, Cmd.none )
+  ( { faza = Konfiguracia 4 10 10, log = [] }, Cmd.none )
 
 
 novyhrac : Hrac
@@ -111,6 +108,7 @@ novystav : Stav
 novystav =
   { hraci = Array.empty
   , hrac = 0
+  , hracov = 0
   , sirka = 0
   , vyska = 0
   , mapa = Array.empty
@@ -176,6 +174,7 @@ type Msg
   = Prijal
   | Podal
   | Tahal Tah
+  | Konfiguroval Int Int Int
 
 
 type Tah
@@ -186,18 +185,15 @@ type Tah
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-  ( case model of
-    Nothing ->
-      -- TODO: spustenie novej hry
-      Nothing
-    Just h ->
-      case msg of
-        Prijal ->
-          Just { h | faza = Dumanie }
-        Tahal t ->
-          Just { h | log = h.log ++ [ t ], faza = Zaver }
-        Podal ->
-          Just { h | faza = Podanie }
+  ( case msg of
+    Prijal ->
+      { model | faza = Dumanie }
+    Tahal t ->
+      { model | log = model.log ++ [ t ], faza = if model.faza == Dumanie then Zaver else model.faza }
+    Podal ->
+      { model | faza = Podanie }
+    Konfiguroval n s v ->
+      { model | faza = Konfiguracia n s v }
   , Cmd.none
   )
 
@@ -218,55 +214,95 @@ subscriptions _ =
 view : Model -> Html.Html Msg
 view model =
   (let
-    tlacidlo farba msg =
-      [ onClick msg
-      , El.width El.fill
-      , El.height El.fill
-      , El.padding 8
-      , Font.color (El.rgb 1 1 1)
-      , Bg.color farba
-      , El.pointer
-      ]
-   in
-   case model of
-    Nothing ->
-      -- TODO: úvodná obrazovka
-      El.none
-    Just h ->
+    tlacidlo farba msg obsah =
+      Input.button
+        [ El.width El.fill
+        , El.height El.fill
+        , El.padding 8
+        , Font.color (El.rgb 1 1 1)
+        , Bg.color farba
+        , El.pointer
+        , El.focused [ Border.color (El.rgba 0 0 0 0) ]
+        ]
+        { onPress = Just msg
+        , label = obsah
+        }
+    stav =
+      List.foldl vykonaj novystav model.log
+    vykonaj t s =
       let
-        stav : Stav
-        stav =
-          List.foldl vykonaj novystav h.log
-        vykonaj t s =
-          s
+        hracNT =
+         s.hraci |> Array.get s.hrac |> Maybe.withDefault novyhrac
       in
-        case h.faza of
-          Podanie ->
-            -- nový hráč prichádza na ťah
-            El.text ("Som hráč " ++ String.fromInt stav.hrac) |> El.el (tlacidlo (El.rgb 1 0.6 1) Prijal)
-          Dumanie ->
-            case Array.get stav.hrac stav.hraci of
-              Nothing ->
-                -- TODO: chybová stránka (alebo zmena modelu, aby sme nemuseli Array.get)
-                El.none
-              Just hracNaTahu ->
-                case hracNaTahu.sur of
-                  Nothing ->
-                    -- umiestni sa na mape
-                    List.range 0 (stav.vyska - 1)
-                      |> List.map
-                        (\y ->
-                          List.range 0 (stav.sirka - 1)
-                            |> List.map (\x -> El.el (tlacidlo (El.rgb 0 0 0) (Tahal (UmiestniSa (Poloha x y)))) El.none)
-                            |> El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-                        )
-                      |> El.column [ El.width El.fill, El.height El.fill, El.spacing 8, El.padding 8 ]
-
-                  Just { x, y } ->
-                    -- TODO: normálne ťahy
-                    El.none
-          Zaver ->
-            -- TODO: čo hráč vidí po svojom ťahu
+        case t of
+          Zmapuj sirka vyska ->
+            { s | sirka = sirka, vyska = vyska, mapa = Array.repeat sirka (Array.repeat vyska Nic) }
+          Zrod n ->
+            { s | hracov = n, hraci = Array.repeat n novyhrac }
+          UmiestniSa p ->
+            dalsi { s | hraci = Array.set s.hrac { hracNT | sur = Just p } s.hraci }
+    dalsi s =
+      { s | hrac = modBy s.hracov (s.hrac + 1) }
+    aktivny =
+      if model.faza == Zaver then
+        modBy stav.hracov (stav.hrac - 1)
+      else
+        stav.hrac
+    najdi x y =
+      stav.mapa |> Array.get x |> Maybe.withDefault Array.empty |> Array.get y |> Maybe.withDefault Nic
+  in
+    case model.faza of
+      Konfiguracia n s v ->
+        if stav.hracov == 0 then
+          -- voľba počtu hráčov
+          El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+            [ tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval (n + 1) s v) (El.text "Zvýšiť počet hráčov")
+            , tlacidlo (El.rgb 0.1 0.1 0.1) (Zrod n |> Tahal) (El.text (String.fromInt n))
+            , tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval (max 1 (n - 1)) s v) (El.text "Znížiť počet hráčov")
+            ]
+        else if stav.sirka == 0 then
+          -- voľba rozmerov mapy
+          El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+            [ El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+              [ tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval n (s + 1) v) (El.text "Zvýšiť šírku mapy")
+              , tlacidlo (El.rgb 0.1 0.1 0.1) (Zmapuj s v |> Tahal) (El.text (String.fromInt s))
+              , tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval n (max 1 (s - 1)) v) (El.text "Znížiť šírku mapy")
+              ]
+            , El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+              [ tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval n s (v + 1)) (El.text "Zvýšiť výšku mapy")
+              , tlacidlo (El.rgb 0.1 0.1 0.1) (Zmapuj s v |> Tahal) (El.text (String.fromInt v))
+              , tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval n s (max 1 (v - 1))) (El.text "Znížiť výšku mapy")
+              ]
+            ]
+        else
+          -- nový hráč prichádza na ťah
+          El.text ("Som hráč " ++ String.fromInt aktivny) |> tlacidlo (El.rgb 0 0.6 1) Prijal
+      Podanie ->
+        -- nový hráč prichádza na ťah
+        El.text ("Som hráč " ++ String.fromInt aktivny) |> tlacidlo (El.rgb 0 0.6 1) Prijal
+      Dumanie ->
+        -- hráč sa rozhoduje, ako potiahne
+        case Array.get aktivny stav.hraci of
+          Nothing ->
+            -- TODO: chybová stránka (alebo zmena modelu, aby sme nemuseli Array.get)
             El.none
+          Just hracNaTahu ->
+            case hracNaTahu.sur of
+              Nothing ->
+                -- umiestni sa na mape
+                List.range 0 (stav.vyska - 1)
+                  |> List.map
+                    (\y ->
+                      List.range 0 (stav.sirka - 1)
+                        |> List.map (\x -> tlacidlo (El.rgb 1 1 1) (Poloha x y |> UmiestniSa |> Tahal) El.none)
+                        |> El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+                    )
+                  |> El.column [ El.width El.fill, El.height El.fill, El.spacing 8, El.padding 8 ]
+              Just { x, y } ->
+                -- TODO: normálne ťahy
+                El.none
+      Zaver ->
+        -- TODO: čo hráč vidí po svojom ťahu
+        El.none
   )
-    |> El.layout [ Font.center ]
+    |> El.layout [ Font.center, Bg.color (El.rgb 0 0 0) ]
