@@ -132,43 +132,8 @@ type alias Smer =
   Poloha -> Poloha
 
 
-smer : Stav -> Int -> Int -> Smer
-smer { sirka, vyska } dx dy { x, y } =
-  { x = modBy sirka (x + dx), y = modBy vyska (y + dy) }
-
-
-sever : Stav -> Smer
-sever m =
-  smer m 0 -1
-
-
-vychod : Stav -> Smer
-vychod m =
-  smer m 1 0
-
-
-juh : Stav -> Smer
-juh m =
-  smer m 0 1
-
-
-zapad : Stav -> Smer
-zapad m =
-  smer m -1 0
-
-
 type alias Odraz =
   Smer -> Smer
-
-
-odrazV : Stav -> Odraz
-odrazV m s p =
-  { x = modBy m.sirka (p.x - (s p).y + p.y), y = modBy m.vyska (p.y - (s p).x + p.x) }
-
-
-odrazZ : Stav -> Odraz
-odrazZ m s p =
-  { x = modBy m.sirka (p.x + (s p).y - p.y), y = modBy m.vyska (p.y + (s p).x - p.x) }
 
 
 
@@ -263,6 +228,20 @@ view model =
       |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.8 0.8 0.8) ]
     hracNaTahu =
       stav.hraci |> Array.get aktivny |> Maybe.withDefault novyhrac
+    smer dx dy { x, y } =
+      { x = modBy stav.sirka (x + dx), y = modBy stav.vyska (y + dy) }
+    sever =
+      smer 0 -1
+    vychod =
+      smer 1 0
+    juh =
+      smer 0 1
+    zapad =
+      smer -1 0
+    odrazV s p =
+      { x = modBy stav.sirka (p.x - (s p).y + p.y), y = modBy stav.vyska (p.y - (s p).x + p.x) }
+    odrazZ s p =
+      { x = modBy stav.sirka (p.x + (s p).y - p.y), y = modBy stav.vyska (p.y + (s p).x - p.x) }
   in
     El.layout [ Font.center, Bg.color (El.rgb 0 0 0) ] <|
     case model.faza of
@@ -319,17 +298,17 @@ view model =
             El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
               [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                 [ El.el [ El.width El.fill ] El.none
-                , sever stav p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+                , sever p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
                 , El.el [ El.width El.fill ] El.none
                 ]
               , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-                [ zapad stav p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+                [ zapad p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
                 , p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
-                , vychod stav p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+                , vychod p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
                 ]
               , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                 [ El.el [ El.width El.fill ] El.none
-                , juh stav p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+                , juh p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
                 , El.el [ El.width El.fill ] El.none
                 ]
               , El.text ("Podávam hráčovi " ++ String.fromInt stav.hrac) |> tlacidlo (El.rgb 0.4 0.8 0) Podal
