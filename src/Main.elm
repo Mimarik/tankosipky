@@ -182,6 +182,8 @@ subscriptions _ =
 view : Model -> Html.Html Msg
 view model =
   let
+    miestodrzitel =
+      El.text >> El.el [El.width El.fill, El.height El.fill, Bg.color (El.rgb 1 0 0)]
     tlacidlo farba msg obsah =
       Input.button
         [ El.width El.fill
@@ -323,12 +325,12 @@ view model =
               |> El.column [ El.width El.fill, El.height El.fill, El.spacing 8, El.padding 8 ]
           Just { x, y } ->
             -- TODO: normálne ťahy
-            El.none
+            miestodrzitel "Ťah živého hráča"
       Zaver ->
         case polohaNaTahu of
           Nothing ->
             -- TODO: hráč medzičasom opäť zomrel
-            El.none
+            miestodrzitel "Obrazovka pre hráča mŕtveho na konci svojho ťahu"
           Just p ->
             -- čo hráč vidí po svojom ťahu
             El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
