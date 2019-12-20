@@ -123,7 +123,9 @@ novystav =
 
 
 type alias Poloha =
-  { x : Int, y : Int }
+  { x : Int
+  , y : Int
+  }
 
 
 type alias Smer =
@@ -216,7 +218,7 @@ subscriptions _ =
 
 view : Model -> Html.Html Msg
 view model =
-  (let
+  let
     tlacidlo farba msg obsah =
       Input.button
         [ El.width El.fill
@@ -262,6 +264,7 @@ view model =
     hracNaTahu =
       stav.hraci |> Array.get aktivny |> Maybe.withDefault novyhrac
   in
+    El.layout [ Font.center, Bg.color (El.rgb 0 0 0) ] <|
     case model.faza of
       Konfiguracia n s v ->
         if stav.hracov == 0 then
@@ -331,5 +334,3 @@ view model =
                 ]
               , El.text ("Podávam hráčovi " ++ String.fromInt stav.hrac) |> tlacidlo (El.rgb 0.4 0.8 0) Podal
               ]
-  )
-    |> El.layout [ Font.center, Bg.color (El.rgb 0 0 0) ]
