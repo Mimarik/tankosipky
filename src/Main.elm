@@ -58,7 +58,6 @@ type Policko
 
 type alias Hrac =
   { zivot : Int
-  , sur : Maybe Poloha
   , kamen : Int
   , sipkaS : Bool
   , sipkaV : Bool
@@ -90,7 +89,6 @@ init _ =
 novyhrac : Hrac
 novyhrac =
   { zivot = 3
-  , sur = Nothing
   , kamen = 10
   , sipkaS = True
   , sipkaV = True
@@ -201,8 +199,35 @@ view model =
       List.foldl vykonaj novystav model.log
     vykonaj t s =
       let
-        hracNT =
-         s.hraci |> Array.get s.hrac |> Maybe.withDefault novyhrac
+        poloz obj p pokus mapa =
+          let
+            staryobj =
+              mapa |> Array.get p.x |> Maybe.withDefault Array.empty |> Array.get p.y |> Maybe.withDefault Nic
+            uspesne =
+              Array.set p.x (Array.get p.x mapa |> Maybe.withDefault Array.empty |> Array.set p.y obj)
+          in
+            if pokus > s.sirka * s.vyska then
+              mapa
+            else
+              case (obj, staryobj) of
+                  (_, Sipka niekam) ->
+                    mapa |> poloz obj (niekam p) (pokus + 1)
+                  (Sipka niekam, _) ->
+                    mapa |> uspesne |> poloz staryobj (niekam p) 0
+                  (_, Tank _) ->
+                    mapa
+                  (Tank _, _) ->
+                    mapa |> uspesne
+                  (Mina, Gula g) ->
+                    mapa |> poloz (MinaGula g) p pokus
+                  (MinaGula _, Gula g) ->
+                    mapa |> Array.set p.x (Array.get p.x mapa |> Maybe.withDefault Array.empty |> Array.set p.y (MinaGula g))
+                  (MinaLuc _, Gula g) ->
+                    mapa |> poloz (MinaGula g) p pokus
+                  (_, Gula _) ->
+                    mapa
+                  _ ->
+                    mapa
       in
         case t of
           Zmapuj sirka vyska ->
@@ -210,7 +235,7 @@ view model =
           Zrod n ->
             { s | hracov = n, hraci = Array.repeat n novyhrac }
           UmiestniSa p ->
-            dalsi { s | hraci = Array.set s.hrac { hracNT | sur = Just p } s.hraci }
+            dalsi { s | mapa = poloz (Clovek s.hrac) p 0 s.mapa }
     dalsi s =
       { s | hrac = modBy s.hracov (s.hrac + 1) }
     aktivny =
@@ -228,6 +253,17 @@ view model =
       |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.8 0.8 0.8) ]
     hracNaTahu =
       stav.hraci |> Array.get aktivny |> Maybe.withDefault novyhrac
+    polohaNaTahu =
+      stav.mapa
+        |> Array.map (Array.toIndexedList >> List.foldl (\(y, e) a -> if e == Clovek aktivny then Just y else a) Nothing)
+        |> Array.toIndexedList
+        |> List.foldl (\(x, e) a ->
+          case e of
+            Just y ->
+              Just { x = x, y = y }
+            Nothing ->
+              a
+        ) Nothing
     smer dx dy { x, y } =
       { x = modBy stav.sirka (x + dx), y = modBy stav.vyska (y + dy) }
     sever =
@@ -274,7 +310,7 @@ view model =
         -- nový hráč prichádza na ťah
         El.text ("Som hráč " ++ String.fromInt aktivny) |> tlacidlo (El.rgb 0 0.6 1) Prijal
       Dumanie ->
-        case hracNaTahu.sur of
+        case polohaNaTahu of
           Nothing ->
             -- umiestni sa na mape
             List.range 0 (stav.vyska - 1)
@@ -289,7 +325,7 @@ view model =
             -- TODO: normálne ťahy
             El.none
       Zaver ->
-        case hracNaTahu.sur of
+        case polohaNaTahu of
           Nothing ->
             -- TODO: hráč medzičasom opäť zomrel
             El.none
