@@ -1,3 +1,5 @@
+module Main exposing (main)
+
 import Array
 import Browser
 import Element as El
