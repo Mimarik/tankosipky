@@ -205,31 +205,95 @@ view model =
           let
             staryobj =
               mapa |> Array.get p.x |> Maybe.withDefault Array.empty |> Array.get p.y |> Maybe.withDefault Nic
-            uspesne =
-              Array.set p.x (Array.get p.x mapa |> Maybe.withDefault Array.empty |> Array.set p.y obj)
+            uspesne o =
+              Array.set p.x (Array.get p.x mapa |> Maybe.withDefault Array.empty |> Array.set p.y o)
           in
             if pokus > s.sirka * s.vyska then
               mapa
             else
               case (obj, staryobj) of
+                  (Nic, _) ->
+                    mapa
                   (_, Sipka niekam) ->
                     mapa |> poloz obj (niekam p) (pokus + 1)
                   (Sipka niekam, _) ->
-                    mapa |> uspesne |> poloz staryobj (niekam p) 0
+                    mapa |> uspesne obj |> poloz staryobj (niekam p) 0
                   (_, Tank _) ->
                     mapa
                   (Tank _, _) ->
-                    mapa |> uspesne
+                    mapa |> uspesne obj
                   (Mina, Gula g) ->
-                    mapa |> poloz (MinaGula g) p pokus
+                    mapa |> uspesne (MinaGula g)
                   (MinaGula _, Gula g) ->
-                    mapa |> Array.set p.x (Array.get p.x mapa |> Maybe.withDefault Array.empty |> Array.set p.y (MinaGula g))
+                    mapa |> uspesne (MinaGula g)
                   (MinaLuc _, Gula g) ->
-                    mapa |> poloz (MinaGula g) p pokus
+                    mapa |> uspesne (MinaGula g)
                   (_, Gula _) ->
                     mapa
-                  _ ->
+                  (Mina, MinaGula g) ->
+                    mapa |> uspesne (Gula g)
+                  (MinaGula _, MinaGula g) ->
+                    mapa |> uspesne (Gula g)
+                  (MinaLuc _, MinaGula g) ->
+                    mapa |> uspesne (Gula g)
+                  (_, MinaGula _) ->
                     mapa
+                  (Gula g, Mina) ->
+                    mapa |> uspesne (MinaGula g)
+                  (Gula _, _) ->
+                    mapa |> uspesne obj
+                  (MinaGula g, Mina) ->
+                    mapa |> uspesne (Gula g)
+                  (MinaGula _, _) ->
+                    mapa |> uspesne obj
+                  (Luc l, Mina) ->
+                    mapa |> uspesne (MinaLuc l)
+                  (_, Mina) ->
+                    mapa |> uspesne Nic
+                  (Luc _, MinaLuc _) ->
+                    mapa
+                  (_, MinaLuc l) ->
+                    mapa |> uspesne (Luc l)
+                  (Mina, Nic) ->
+                    mapa |> uspesne obj
+                  (Mina, Luc l) ->
+                    mapa |> uspesne (MinaLuc l)
+                  (Mina, _) ->
+                    mapa |> uspesne Nic
+                  (MinaLuc _, Nic) ->
+                    mapa |> uspesne obj
+                  (MinaLuc _, Luc _) ->
+                    mapa |> uspesne obj
+                  (MinaLuc l, _) ->
+                    mapa |> uspesne (Luc l)
+                  (_, Kamen) ->
+                    mapa
+                  (Kamen, _) ->
+                    mapa |> uspesne obj
+                  (_, Laser _) ->
+                    mapa
+                  (Laser _, _) ->
+                    mapa |> uspesne obj
+                  (Zrkadlo _, Luc _) ->
+                    mapa |> uspesne obj
+                  (_, Luc _) ->
+                    mapa
+                  (Luc _, Zrkadlo _) ->
+                    mapa
+                  (Luc _, _) ->
+                    mapa |> uspesne obj
+                  (_, Veza _) ->
+                    mapa
+                  (Veza _, _) ->
+                    mapa |> uspesne obj
+                  (_, Clovek _) ->
+                    mapa
+                  (Clovek _, _) ->
+                    mapa |> uspesne obj
+                  (Zrkadlo _, Zrkadlo _) ->
+                    mapa
+                  (Zrkadlo _, Nic) ->
+                    mapa |> uspesne obj
       in
         case t of
           Zmapuj sirka vyska ->
