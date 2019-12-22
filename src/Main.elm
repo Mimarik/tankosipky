@@ -126,12 +126,54 @@ type alias Poloha =
   }
 
 
-type alias Smer =
-  Poloha -> Poloha
+type Smer
+  = Sever
+  | Vychod
+  | Juh
+  | Zapad
 
 
-type alias Odraz =
-  Smer -> Smer
+posunutie : Smer -> Poloha
+posunutie kam =
+  case kam of
+    Sever ->
+      Poloha 0 -1
+    Vychod ->
+      Poloha 1 0
+    Juh ->
+      Poloha 0 1
+    Zapad ->
+      Poloha -1 0
+
+
+type Odraz
+  = Zostupny
+  | Vzostupny
+
+
+odraz : Odraz -> Smer -> Smer
+odraz o kam =
+  case o of
+    Zostupny ->
+      case kam of
+        Sever ->
+          Zapad
+        Vychod ->
+          Juh
+        Juh ->
+          Vychod
+        Zapad ->
+          Sever
+    Vzostupny ->
+      case kam of
+        Sever ->
+          Vychod
+        Vychod ->
+          Sever
+        Juh ->
+          Zapad
+        Zapad ->
+          Juh
 
 
 
@@ -149,10 +191,7 @@ type Tah
   = Zmapuj Int Int
   | Zrod Int
   | UmiestniSa Poloha
-  | ChodS
-  | ChodV
-  | ChodJ
-  | ChodZ
+  | Chod Smer
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -217,10 +256,10 @@ view model =
               case (obj, staryobj) of
                   (Nic, _) ->
                     mapa
-                  (_, Sipka niekam) ->
-                    mapa |> poloz obj (niekam p) (pokus + 1)
-                  (Sipka niekam, _) ->
-                    mapa |> uspesne obj |> poloz staryobj (niekam p) 0
+                  (_, Sipka kam) ->
+                    mapa |> poloz obj (p |> smer s kam) (pokus + 1)
+                  (Sipka kam, _) ->
+                    mapa |> uspesne obj |> poloz staryobj (p |> smer s kam) 0
                   (_, Tank _) ->
                     mapa
                   (Tank _, _) ->
@@ -334,20 +373,8 @@ view model =
             Nothing ->
               a
         ) Nothing
-    smer dx dy { x, y } =
-      { x = modBy stav.sirka (x + dx), y = modBy stav.vyska (y + dy) }
-    sever =
-      smer 0 -1
-    vychod =
-      smer 1 0
-    juh =
-      smer 0 1
-    zapad =
-      smer -1 0
-    odrazV s p =
-      { x = modBy stav.sirka (p.x - (s p).y + p.y), y = modBy stav.vyska (p.y - (s p).x + p.x) }
-    odrazZ s p =
-      { x = modBy stav.sirka (p.x + (s p).y - p.y), y = modBy stav.vyska (p.y + (s p).x - p.x) }
+    smer s kam { x, y } =
+      { x = modBy s.sirka (x + (posunutie kam).x), y = modBy s.vyska (y + (posunutie kam).y) }
   in
     El.layout [ Font.center, Bg.color (El.rgb 0 0 0) ] <|
     case model.faza of
@@ -396,17 +423,17 @@ view model =
             El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
               [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                 [ El.el [ El.width El.fill ] El.none
-                , sever p |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal ChodS)
+                , p |> smer stav Sever |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal (Chod Sever))
                 , El.el [ El.width El.fill ] El.none
                 ]
               , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-                [ zapad p |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal ChodZ)
+                [ p |> smer stav Zapad |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal (Chod Zapad))
                 , p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
-                , vychod p |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal ChodV)
+                , p |> smer stav Vychod |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal (Chod Vychod))
                 ]
               , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                 [ El.el [ El.width El.fill ] El.none
-                , juh p |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal ChodJ)
+                , p |> smer stav Juh |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal (Chod Juh))
                 , El.el [ El.width El.fill ] El.none
                 ]
               ]
@@ -420,17 +447,17 @@ view model =
             El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
               [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                 [ El.el [ El.width El.fill ] El.none
-                , sever p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+                , p |> smer stav Sever |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
                 , El.el [ El.width El.fill ] El.none
                 ]
               , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-                [ zapad p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+                [ p |> smer stav Zapad |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
                 , p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
-                , vychod p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+                , p |> smer stav Vychod |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
                 ]
               , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                 [ El.el [ El.width El.fill ] El.none
-                , juh p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+                , p |> smer stav Juh |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
                 , El.el [ El.width El.fill ] El.none
                 ]
               , El.text ("Podávam hráčovi " ++ String.fromInt stav.hrac) |> tlacidlo (El.rgb 0.4 0.8 0) Podal
