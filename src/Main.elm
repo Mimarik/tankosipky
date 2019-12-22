@@ -149,6 +149,10 @@ type Tah
   = Zmapuj Int Int
   | Zrod Int
   | UmiestniSa Poloha
+  | ChodS
+  | ChodV
+  | ChodJ
+  | ChodZ
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -188,7 +192,6 @@ view model =
       Input.button
         [ El.width El.fill
         , El.height El.fill
-        , El.padding 8
         , Font.color (El.rgb 1 1 1)
         , Bg.color farba
         , El.pointer
@@ -302,6 +305,8 @@ view model =
             { s | hracov = n, hraci = Array.repeat n novyhrac }
           UmiestniSa p ->
             dalsi { s | mapa = poloz (Clovek s.hrac) p 0 s.mapa }
+          _ ->
+            dalsi s
     dalsi s =
       { s | hrac = modBy s.hracov (s.hrac + 1) }
     aktivny =
@@ -316,7 +321,6 @@ view model =
         El.text "Nič"
       else
         El.text "Niečo"
-      |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.8 0.8 0.8) ]
     hracNaTahu =
       stav.hraci |> Array.get aktivny |> Maybe.withDefault novyhrac
     polohaNaTahu =
@@ -387,9 +391,25 @@ view model =
                     |> El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                 )
               |> El.column [ El.width El.fill, El.height El.fill, El.spacing 8, El.padding 8 ]
-          Just { x, y } ->
-            -- TODO: normálne ťahy
-            miestodrzitel "Ťah živého hráča"
+          Just p ->
+            -- normálny ťah živého hráča
+            El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+              [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+                [ El.el [ El.width El.fill ] El.none
+                , sever p |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal ChodS)
+                , El.el [ El.width El.fill ] El.none
+                ]
+              , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+                [ zapad p |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal ChodZ)
+                , p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+                , vychod p |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal ChodV)
+                ]
+              , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+                [ El.el [ El.width El.fill ] El.none
+                , juh p |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal ChodJ)
+                , El.el [ El.width El.fill ] El.none
+                ]
+              ]
       Zaver ->
         case polohaNaTahu of
           Nothing ->
