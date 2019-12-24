@@ -50,7 +50,7 @@ type Policko
   | Laser Smer
   | Veza Smer
   | Clovek Int
-  | Zrkadlo Odraz
+  | Zrkadlo Odraz Bool Bool
   | Luc Smer
   | MinaLuc Smer
   | Sipka Smer
@@ -116,6 +116,164 @@ novystav =
   }
 
 
+polohaHraca : Stav -> Int -> Maybe Poloha
+polohaHraca s n =
+  s.mapa
+    |> Array.map (Array.toIndexedList >> List.foldl (\(y, e) a -> if e == Clovek n then Just y else a) Nothing)
+    |> Array.toIndexedList
+    |> List.foldl (\(x, e) a ->
+      case e of
+        Just y ->
+          Just { x = x, y = y }
+        Nothing ->
+          a
+    ) Nothing
+
+
+policko : Stav -> Poloha -> Policko
+policko s { x, y } =
+  s.mapa |> Array.get x |> Maybe.withDefault Array.empty |> Array.get y |> Maybe.withDefault Nic
+
+
+vykonaj : Tah -> Stav -> Stav
+vykonaj t s =
+  let
+    poloz obj p pokus mapa =
+      let
+        staryobj =
+          mapa |> Array.get p.x |> Maybe.withDefault Array.empty |> Array.get p.y |> Maybe.withDefault Nic
+        uspesne o =
+          Array.set p.x (Array.get p.x mapa |> Maybe.withDefault Array.empty |> Array.set p.y o)
+      in
+        if pokus > s.sirka * s.vyska then
+          mapa
+        else
+          case (obj, staryobj) of
+              (Nic, _) ->
+                mapa
+              (_, Sipka kam) ->
+                mapa |> poloz obj (p |> smer s kam) (pokus + 1)
+              (Sipka kam, _) ->
+                mapa |> uspesne obj |> poloz staryobj (p |> smer s kam) 0
+              (_, Tank _) ->
+                mapa
+              (Tank _, _) ->
+                mapa |> uspesne obj
+              (Mina, Gula g) ->
+                mapa |> uspesne (MinaGula g)
+              (MinaGula _, Gula g) ->
+                mapa |> uspesne (MinaGula g)
+              (MinaLuc _, Gula g) ->
+                mapa |> uspesne (MinaGula g)
+              (_, Gula _) ->
+                mapa
+              (Mina, MinaGula g) ->
+                mapa |> uspesne (Gula g)
+              (MinaGula _, MinaGula g) ->
+                mapa |> uspesne (Gula g)
+              (MinaLuc _, MinaGula g) ->
+                mapa |> uspesne (Gula g)
+              (_, MinaGula _) ->
+                mapa
+              (Gula g, Mina) ->
+                mapa |> uspesne (MinaGula g)
+              (Gula _, _) ->
+                mapa |> uspesne obj
+              (MinaGula g, Mina) ->
+                mapa |> uspesne (Gula g)
+              (MinaGula _, _) ->
+                mapa |> uspesne obj
+              (Luc l, Mina) ->
+                mapa |> uspesne (MinaLuc l)
+              (_, Mina) ->
+                mapa |> uspesne Nic
+              (Luc _, MinaLuc _) ->
+                mapa
+              (_, MinaLuc l) ->
+                mapa |> uspesne (Luc l)
+              (Mina, Nic) ->
+                mapa |> uspesne obj
+              (Mina, Luc l) ->
+                mapa |> uspesne (MinaLuc l)
+              (Mina, _) ->
+                mapa |> uspesne Nic
+              (MinaLuc _, Nic) ->
+                mapa |> uspesne obj
+              (MinaLuc _, Luc _) ->
+                mapa |> uspesne obj
+              (MinaLuc l, _) ->
+                mapa |> uspesne (Luc l)
+              (_, Kamen) ->
+                mapa
+              (Kamen, _) ->
+                mapa |> uspesne obj
+              (_, Laser _) ->
+                mapa
+              (Laser _, _) ->
+                mapa |> uspesne obj
+              (Zrkadlo _ _ _, Luc _) ->
+                mapa |> uspesne obj
+              (_, Luc _) ->
+                mapa
+              (Luc _, Zrkadlo _ _ _) ->
+                mapa
+              (Luc _, _) ->
+                mapa |> uspesne obj
+              (_, Veza _) ->
+                mapa
+              (Veza _, _) ->
+                mapa |> uspesne obj
+              (_, Clovek _) ->
+                mapa
+              (Clovek _, _) ->
+                mapa |> uspesne obj
+              (Zrkadlo _ _ _, Zrkadlo _ _ _) ->
+                mapa
+              (Zrkadlo _ _ _, Nic) ->
+                mapa |> uspesne obj
+    sur =
+      polohaHraca s s.hrac |> Maybe.withDefault (Poloha 0 0)
+    vyprazdni p mapa =
+      Array.set p.x
+        (Array.get p.x mapa |> Maybe.withDefault Array.empty |> Array.set p.y
+          (case mapa |> Array.get p.x |> Maybe.withDefault Array.empty |> Array.get p.y |> Maybe.withDefault Nic of
+            Nic ->
+              Nic
+            Tank _ ->
+              Nic
+            Gula _ ->
+              Nic
+            MinaGula _ ->
+              Mina
+            MinaLuc _ ->
+              Mina
+            Luc _ ->
+              Nic
+            Clovek _ ->
+              Nic
+            Zrkadlo z _ _ ->
+              Zrkadlo z False False
+            x ->
+              x
+          )
+        ) mapa
+  in
+    case t of
+      Zmapuj sirka vyska ->
+        { s | sirka = sirka, vyska = vyska, mapa = Array.repeat sirka (Array.repeat vyska Nic) }
+      Zrod n ->
+        { s | hracov = n, hraci = Array.repeat n novyhrac }
+      UmiestniSa p ->
+        { s | mapa = poloz (Clovek s.hrac) p 0 s.mapa } |> dalsi
+      Chod kam ->
+        { s | mapa = s.mapa |> vyprazdni sur |> poloz (Clovek s.hrac) (smer s kam sur) 0 } |> dalsi
+
+
+dalsi : Stav -> Stav
+dalsi s =
+  { s | hrac = modBy s.hracov (s.hrac + 1) }
+
+
 
 -- BEHANIE PO MAPE
 
@@ -144,6 +302,11 @@ posunutie kam =
       Poloha 0 1
     Zapad ->
       Poloha -1 0
+
+
+smer : Stav -> Smer -> Poloha -> Poloha
+smer s kam { x, y } =
+  { x = modBy s.sirka (x + (posunutie kam).x), y = modBy s.vyska (y + (posunutie kam).y) }
 
 
 type Odraz
@@ -241,140 +404,27 @@ view model =
         }
     stav =
       List.foldl vykonaj novystav model.log
-    vykonaj t s =
-      let
-        poloz obj p pokus mapa =
-          let
-            staryobj =
-              mapa |> Array.get p.x |> Maybe.withDefault Array.empty |> Array.get p.y |> Maybe.withDefault Nic
-            uspesne o =
-              Array.set p.x (Array.get p.x mapa |> Maybe.withDefault Array.empty |> Array.set p.y o)
-          in
-            if pokus > s.sirka * s.vyska then
-              mapa
-            else
-              case (obj, staryobj) of
-                  (Nic, _) ->
-                    mapa
-                  (_, Sipka kam) ->
-                    mapa |> poloz obj (p |> smer s kam) (pokus + 1)
-                  (Sipka kam, _) ->
-                    mapa |> uspesne obj |> poloz staryobj (p |> smer s kam) 0
-                  (_, Tank _) ->
-                    mapa
-                  (Tank _, _) ->
-                    mapa |> uspesne obj
-                  (Mina, Gula g) ->
-                    mapa |> uspesne (MinaGula g)
-                  (MinaGula _, Gula g) ->
-                    mapa |> uspesne (MinaGula g)
-                  (MinaLuc _, Gula g) ->
-                    mapa |> uspesne (MinaGula g)
-                  (_, Gula _) ->
-                    mapa
-                  (Mina, MinaGula g) ->
-                    mapa |> uspesne (Gula g)
-                  (MinaGula _, MinaGula g) ->
-                    mapa |> uspesne (Gula g)
-                  (MinaLuc _, MinaGula g) ->
-                    mapa |> uspesne (Gula g)
-                  (_, MinaGula _) ->
-                    mapa
-                  (Gula g, Mina) ->
-                    mapa |> uspesne (MinaGula g)
-                  (Gula _, _) ->
-                    mapa |> uspesne obj
-                  (MinaGula g, Mina) ->
-                    mapa |> uspesne (Gula g)
-                  (MinaGula _, _) ->
-                    mapa |> uspesne obj
-                  (Luc l, Mina) ->
-                    mapa |> uspesne (MinaLuc l)
-                  (_, Mina) ->
-                    mapa |> uspesne Nic
-                  (Luc _, MinaLuc _) ->
-                    mapa
-                  (_, MinaLuc l) ->
-                    mapa |> uspesne (Luc l)
-                  (Mina, Nic) ->
-                    mapa |> uspesne obj
-                  (Mina, Luc l) ->
-                    mapa |> uspesne (MinaLuc l)
-                  (Mina, _) ->
-                    mapa |> uspesne Nic
-                  (MinaLuc _, Nic) ->
-                    mapa |> uspesne obj
-                  (MinaLuc _, Luc _) ->
-                    mapa |> uspesne obj
-                  (MinaLuc l, _) ->
-                    mapa |> uspesne (Luc l)
-                  (_, Kamen) ->
-                    mapa
-                  (Kamen, _) ->
-                    mapa |> uspesne obj
-                  (_, Laser _) ->
-                    mapa
-                  (Laser _, _) ->
-                    mapa |> uspesne obj
-                  (Zrkadlo _, Luc _) ->
-                    mapa |> uspesne obj
-                  (_, Luc _) ->
-                    mapa
-                  (Luc _, Zrkadlo _) ->
-                    mapa
-                  (Luc _, _) ->
-                    mapa |> uspesne obj
-                  (_, Veza _) ->
-                    mapa
-                  (Veza _, _) ->
-                    mapa |> uspesne obj
-                  (_, Clovek _) ->
-                    mapa
-                  (Clovek _, _) ->
-                    mapa |> uspesne obj
-                  (Zrkadlo _, Zrkadlo _) ->
-                    mapa
-                  (Zrkadlo _, Nic) ->
-                    mapa |> uspesne obj
-      in
-        case t of
-          Zmapuj sirka vyska ->
-            { s | sirka = sirka, vyska = vyska, mapa = Array.repeat sirka (Array.repeat vyska Nic) }
-          Zrod n ->
-            { s | hracov = n, hraci = Array.repeat n novyhrac }
-          UmiestniSa p ->
-            dalsi { s | mapa = poloz (Clovek s.hrac) p 0 s.mapa }
-          _ ->
-            dalsi s
-    dalsi s =
-      { s | hrac = modBy s.hracov (s.hrac + 1) }
+    na =
+      smer stav
+    najdi =
+      policko stav
+    ukaz obj =
+      case obj of
+        Nic ->
+          El.text "Nič"
+        Clovek n ->
+          El.text ("Hráč " ++ String.fromInt n)
+        _ ->
+          El.text "Niečo"
     aktivny =
       if model.faza == Zaver then
         modBy stav.hracov (stav.hrac - 1)
       else
         stav.hrac
-    najdi { x, y } =
-      stav.mapa |> Array.get x |> Maybe.withDefault Array.empty |> Array.get y |> Maybe.withDefault Nic
-    ukaz obj =
-      if obj == Nic then
-        El.text "Nič"
-      else
-        El.text "Niečo"
     hracNaTahu =
       stav.hraci |> Array.get aktivny |> Maybe.withDefault novyhrac
     polohaNaTahu =
-      stav.mapa
-        |> Array.map (Array.toIndexedList >> List.foldl (\(y, e) a -> if e == Clovek aktivny then Just y else a) Nothing)
-        |> Array.toIndexedList
-        |> List.foldl (\(x, e) a ->
-          case e of
-            Just y ->
-              Just { x = x, y = y }
-            Nothing ->
-              a
-        ) Nothing
-    smer s kam { x, y } =
-      { x = modBy s.sirka (x + (posunutie kam).x), y = modBy s.vyska (y + (posunutie kam).y) }
+      polohaHraca stav aktivny
   in
     El.layout [ Font.center, Bg.color (El.rgb 0 0 0) ] <|
     case model.faza of
@@ -423,17 +473,17 @@ view model =
             El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
               [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                 [ El.el [ El.width El.fill ] El.none
-                , p |> smer stav Sever |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal (Chod Sever))
+                , p |> na Sever |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal (Chod Sever))
                 , El.el [ El.width El.fill ] El.none
                 ]
               , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-                [ p |> smer stav Zapad |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal (Chod Zapad))
+                [ p |> na Zapad |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal (Chod Zapad))
                 , p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
-                , p |> smer stav Vychod |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal (Chod Vychod))
+                , p |> na Vychod |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal (Chod Vychod))
                 ]
               , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                 [ El.el [ El.width El.fill ] El.none
-                , p |> smer stav Juh |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal (Chod Juh))
+                , p |> na Juh |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal (Chod Juh))
                 , El.el [ El.width El.fill ] El.none
                 ]
               ]
@@ -447,17 +497,17 @@ view model =
             El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
               [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                 [ El.el [ El.width El.fill ] El.none
-                , p |> smer stav Sever |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+                , p |> na Sever |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
                 , El.el [ El.width El.fill ] El.none
                 ]
               , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-                [ p |> smer stav Zapad |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+                [ p |> na Zapad |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
                 , p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
-                , p |> smer stav Vychod |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+                , p |> na Vychod |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
                 ]
               , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                 [ El.el [ El.width El.fill ] El.none
-                , p |> smer stav Juh |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+                , p |> na Juh |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
                 , El.el [ El.width El.fill ] El.none
                 ]
               , El.text ("Podávam hráčovi " ++ String.fromInt stav.hrac) |> tlacidlo (El.rgb 0.4 0.8 0) Podal
