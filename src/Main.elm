@@ -86,8 +86,8 @@ init _ =
   ( { faza = Konfiguracia 4 10 10, log = [] }, Cmd.none )
 
 
-novyhrac : Hrac
-novyhrac =
+novyHrac : Hrac
+novyHrac =
   { zivot = 3
   , kamen = 10
   , sipkaS = True
@@ -105,8 +105,8 @@ novyhrac =
   }
 
 
-novystav : Stav
-novystav =
+novyStav : Stav
+novyStav =
   { hraci = Array.empty
   , hrac = 0
   , hracov = 0
@@ -262,7 +262,7 @@ vykonaj t s =
       Zmapuj sirka vyska ->
         { s | sirka = sirka, vyska = vyska, mapa = Array.repeat sirka (Array.repeat vyska Nic) }
       Zrod n ->
-        { s | hracov = n, hraci = Array.repeat n novyhrac }
+        { s | hracov = n, hraci = Array.repeat n novyHrac }
       UmiestniSa p ->
         { s | mapa = poloz (Clovek s.hrac) p 0 s.mapa } |> dalsi
       Chod kam ->
@@ -403,7 +403,7 @@ view model =
         , label = obsah
         }
     stav =
-      List.foldl vykonaj novystav model.log
+      List.foldl vykonaj novyStav model.log
     na =
       smer stav
     najdi =
@@ -422,7 +422,7 @@ view model =
       else
         stav.hrac
     hracNaTahu =
-      stav.hraci |> Array.get aktivny |> Maybe.withDefault novyhrac
+      stav.hraci |> Array.get aktivny |> Maybe.withDefault novyHrac
     polohaNaTahu =
       polohaHraca stav aktivny
   in
