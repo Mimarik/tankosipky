@@ -410,37 +410,46 @@ subscriptions _ =
 -- VIEW
 
 
+miestodrzitel : String -> El.Element msg
+miestodrzitel =
+  El.text >> El.el [El.width El.fill, El.height El.fill, Bg.color (El.rgb 1 0 0)]
+
+
+tlacidlo : El.Color -> msg -> El.Element msg -> El.Element msg
+tlacidlo farba msg obsah =
+  Input.button
+    [ El.width El.fill
+    , El.height El.fill
+    , Font.color (El.rgb 1 1 1)
+    , Bg.color farba
+    , El.pointer
+    , El.focused [ Border.color (El.rgba 0 0 0 0) ]
+    ]
+    { onPress = Just msg
+    , label = obsah
+    }
+
+
+ukaz : Policko -> El.Element msg
+ukaz obj =
+  case obj of
+    Nic ->
+      El.text "Nič"
+    Clovek n ->
+      El.text ("Hráč " ++ String.fromInt n)
+    _ ->
+      El.text "Niečo"
+
+
 view : Model -> Html.Html Msg
 view model =
   let
-    miestodrzitel =
-      El.text >> El.el [El.width El.fill, El.height El.fill, Bg.color (El.rgb 1 0 0)]
-    tlacidlo farba msg obsah =
-      Input.button
-        [ El.width El.fill
-        , El.height El.fill
-        , Font.color (El.rgb 1 1 1)
-        , Bg.color farba
-        , El.pointer
-        , El.focused [ Border.color (El.rgba 0 0 0 0) ]
-        ]
-        { onPress = Just msg
-        , label = obsah
-        }
     stav =
       List.foldl vykonaj novyStav model.log
     na =
       smer stav
     najdi =
       policko stav.mapa
-    ukaz obj =
-      case obj of
-        Nic ->
-          El.text "Nič"
-        Clovek n ->
-          El.text ("Hráč " ++ String.fromInt n)
-        _ ->
-          El.text "Niečo"
     aktivny =
       if model.faza == Zaver then
         modBy stav.hracov (stav.hrac - 1)
