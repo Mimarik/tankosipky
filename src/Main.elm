@@ -430,6 +430,28 @@ tlacidlo farba msg obsah =
     }
 
 
+menoSmeru : Smer -> String
+menoSmeru s =
+  case s of
+    Sever ->
+      "sever"
+    Juh ->
+      "juh"
+    Vychod ->
+      "východ"
+    Zapad ->
+      "západ"
+
+
+menoOdrazu : Odraz -> String
+menoOdrazu o =
+  case o of
+    Zostupny ->
+      "zostupne"
+    Vzostupny ->
+      "vzostupne"
+
+
 ukaz : Policko -> El.Element msg
 ukaz obj =
   case obj of
@@ -437,8 +459,28 @@ ukaz obj =
       El.text "Nič"
     Clovek n ->
       El.text ("Hráč " ++ String.fromInt n)
-    _ ->
-      El.text "Niečo"
+    Tank t ->
+      El.text ("Tank otočený na " ++ menoSmeru t )
+    Gula g ->
+      El.text ("Ohnivá guľa letiaca na " ++ menoSmeru g)
+    Mina ->
+      El.text "Mína"
+    MinaGula g ->
+      El.text ("Mína a ohnivá guľa letiaca na " ++ menoSmeru g)
+    Kamen ->
+      El.text "Kameň"
+    Laser l ->
+      El.text ("Laser žiariaci na " ++ menoSmeru l)
+    Veza v ->
+      El.text ("Veža mieriaca na " ++ menoSmeru v)
+    Zrkadlo o x y ->
+      El.text ("Zrkadlo orientované " ++ menoOdrazu o ++ ", " ++ (if x then "" else "ne") ++ "osvetlené zhora, " ++ (if y then "" else "ne") ++ "osvetlené zdola")
+    Luc l ->
+      El.text ("Lúč smerujúci na " ++ menoSmeru l)
+    MinaLuc l ->
+      El.text ("Mína a lúč smerujúci na " ++ menoSmeru l)
+    Sipka s ->
+      El.text ("Šípka ukazujúca na " ++ menoSmeru s)
 
 
 vyhlad : Stav -> Poloha -> (Smer -> Maybe msg) -> List (El.Attribute msg) -> El.Element msg
