@@ -415,7 +415,7 @@ miestodrzitel =
   El.text >> El.el [El.width El.fill, El.height El.fill, Bg.color (El.rgb 1 0 0)]
 
 
-tlacidlo : El.Color -> msg -> El.Element msg -> El.Element msg
+tlacidlo : El.Color -> Maybe msg -> El.Element msg -> El.Element msg
 tlacidlo farba msg obsah =
   Input.button
     [ El.width El.fill
@@ -425,7 +425,7 @@ tlacidlo farba msg obsah =
     , El.pointer
     , El.focused [ Border.color (El.rgba 0 0 0 0) ]
     ]
-    { onPress = Just msg
+    { onPress = msg
     , label = obsah
     }
 
@@ -439,6 +439,27 @@ ukaz obj =
       El.text ("Hráč " ++ String.fromInt n)
     _ ->
       El.text "Niečo"
+
+
+vyhlad : Stav -> Poloha -> (Smer -> Maybe msg) -> El.Element msg
+vyhlad stav poloha spravaPre =
+  El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+    [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+      [ El.el [ El.width El.fill ] El.none
+      , poloha |> smer stav Sever |> policko stav.mapa |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (spravaPre Sever)
+      , El.el [ El.width El.fill ] El.none
+      ]
+    , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+      [ poloha |> smer stav Zapad |> policko stav.mapa |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (spravaPre Zapad)
+      , poloha |> policko stav.mapa |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
+      , poloha |> smer stav Vychod |> policko stav.mapa |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (spravaPre Vychod)
+      ]
+    , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+      [ El.el [ El.width El.fill ] El.none
+      , poloha |> smer stav Juh |> policko stav.mapa |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (spravaPre Juh)
+      , El.el [ El.width El.fill ] El.none
+      ]
+    ]
 
 
 view : Model -> Html.Html Msg
@@ -466,30 +487,30 @@ view model =
         if stav.hracov == 0 then
           -- voľba počtu hráčov
           El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-            [ tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval (n + 1) s v) (El.text "Zvýšiť počet hráčov")
-            , tlacidlo (El.rgb 0.1 0.1 0.1) (Zrod n |> Potvrdil) (El.text (String.fromInt n))
-            , tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval (max 1 (n - 1)) s v) (El.text "Znížiť počet hráčov")
+            [ tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval (n + 1) s v |> Just) (El.text "Zvýšiť počet hráčov")
+            , tlacidlo (El.rgb 0.1 0.1 0.1) (Zrod n |> Potvrdil |> Just) (El.text (String.fromInt n))
+            , tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval (max 1 (n - 1)) s v |> Just) (El.text "Znížiť počet hráčov")
             ]
         else if stav.sirka == 0 then
           -- voľba rozmerov mapy
           El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
             [ El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-              [ tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval n (s + 1) v) (El.text "Zvýšiť šírku mapy")
-              , tlacidlo (El.rgb 0.1 0.1 0.1) (Zmapuj s v |> Potvrdil) (El.text (String.fromInt s))
-              , tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval n (max 1 (s - 1)) v) (El.text "Znížiť šírku mapy")
+              [ tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval n (s + 1) v |> Just) (El.text "Zvýšiť šírku mapy")
+              , tlacidlo (El.rgb 0.1 0.1 0.1) (Zmapuj s v |> Potvrdil |> Just) (El.text (String.fromInt s))
+              , tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval n (max 1 (s - 1)) v |> Just) (El.text "Znížiť šírku mapy")
               ]
             , El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-              [ tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval n s (v + 1)) (El.text "Zvýšiť výšku mapy")
-              , tlacidlo (El.rgb 0.1 0.1 0.1) (Zmapuj s v |> Potvrdil) (El.text (String.fromInt v))
-              , tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval n s (max 1 (v - 1))) (El.text "Znížiť výšku mapy")
+              [ tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval n s (v + 1) |> Just) (El.text "Zvýšiť výšku mapy")
+              , tlacidlo (El.rgb 0.1 0.1 0.1) (Zmapuj s v |> Potvrdil |> Just) (El.text (String.fromInt v))
+              , tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval n s (max 1 (v - 1)) |> Just) (El.text "Znížiť výšku mapy")
               ]
             ]
         else
           -- nový hráč prichádza na ťah
-          El.text ("Som hráč " ++ String.fromInt aktivny) |> tlacidlo (El.rgb 0 0.6 1) Prijal
+          El.text ("Som hráč " ++ String.fromInt aktivny) |> tlacidlo (El.rgb 0 0.6 1) (Just Prijal)
       Podanie ->
         -- nový hráč prichádza na ťah
-        El.text ("Som hráč " ++ String.fromInt aktivny) |> tlacidlo (El.rgb 0 0.6 1) Prijal
+        El.text ("Som hráč " ++ String.fromInt aktivny) |> tlacidlo (El.rgb 0 0.6 1) (Just Prijal)
       Dumanie obj ->
         case polohaNaTahu of
           Nothing ->
@@ -498,31 +519,17 @@ view model =
               |> List.map
                 (\y ->
                   List.range 0 (stav.sirka - 1)
-                    |> List.map (\x -> tlacidlo (El.rgb 0.8 0.8 0.8) (Poloha x y |> UmiestniSa |> Tahal) El.none)
+                    |> List.map (\x -> tlacidlo (El.rgb 0.8 0.8 0.8) (Poloha x y |> UmiestniSa |> Tahal |> Just) El.none)
                     |> El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                 )
               |> El.column [ El.width El.fill, El.height El.fill, El.spacing 8, El.padding 8 ]
           Just p ->
             -- normálny ťah živého hráča
             El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-              [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-                [ El.el [ El.width El.fill ] El.none
-                , p |> na Sever |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal (Chod Sever))
-                , El.el [ El.width El.fill ] El.none
-                ]
-              , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-                [ p |> na Zapad |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal (Chod Zapad))
-                , p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
-                , p |> na Vychod |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal (Chod Vychod))
-                ]
-              , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-                [ El.el [ El.width El.fill ] El.none
-                , p |> na Juh |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal (Chod Juh))
-                , El.el [ El.width El.fill ] El.none
-                ]
+              [ vyhlad stav p (Chod >> Tahal >> Just)
               , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                 [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-                  [ tlacidlo (El.rgb 0.8 0.4 0) (Vybral Kamen) (ukaz Kamen)
+                  [ tlacidlo (El.rgb 0.8 0.4 0) (Vybral Kamen |> Just) (ukaz Kamen)
                   ]
                 ]
               ]
@@ -534,20 +541,6 @@ view model =
           Just p ->
             -- čo hráč vidí po svojom ťahu
             El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-              [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-                [ El.el [ El.width El.fill ] El.none
-                , p |> na Sever |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
-                , El.el [ El.width El.fill ] El.none
-                ]
-              , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-                [ p |> na Zapad |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
-                , p |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
-                , p |> na Vychod |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
-                ]
-              , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-                [ El.el [ El.width El.fill ] El.none
-                , p |> na Juh |> najdi |> ukaz |> El.el [ El.width El.fill, El.height El.fill, Bg.color (El.rgb 0.5 0.5 0.5) ]
-                , El.el [ El.width El.fill ] El.none
-                ]
-              , El.text ("Podávam hráčovi " ++ String.fromInt stav.hrac) |> tlacidlo (El.rgb 0.4 0.8 0) Podal
+              [ vyhlad stav p (always Nothing)
+              , El.text ("Podávam hráčovi " ++ String.fromInt stav.hrac) |> tlacidlo (El.rgb 0.4 0.8 0) (Just Podal)
               ]
