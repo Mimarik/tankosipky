@@ -441,9 +441,9 @@ ukaz obj =
       El.text "Niečo"
 
 
-vyhlad : Stav -> Poloha -> (Smer -> Maybe msg) -> El.Element msg
-vyhlad stav poloha spravaPre =
-  El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+vyhlad : Stav -> Poloha -> (Smer -> Maybe msg) -> List (El.Attribute msg) -> El.Element msg
+vyhlad stav poloha spravaPre atr =
+  El.column ([ El.width El.fill, El.height El.fill, El.spacing 8 ] ++ atr)
     [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
       [ El.el [ El.width El.fill ] El.none
       , poloha |> smer stav Sever |> policko stav.mapa |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (spravaPre Sever)
@@ -522,7 +522,7 @@ view model =
           Just p ->
             -- normálny ťah živého hráča
             El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-              [ vyhlad stav p (Chod >> Tahal >> Just)
+              [ vyhlad stav p (Chod >> Tahal >> Just) [ El.height (El.fillPortion 3) ]
               , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                 [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                   [ tlacidlo (El.rgb 0.8 0.4 0) (Vybral Kamen |> Just) (ukaz Kamen)
@@ -537,6 +537,6 @@ view model =
           Just p ->
             -- čo hráč vidí po svojom ťahu
             El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-              [ vyhlad stav p (always Nothing)
+              [ vyhlad stav p (always Nothing) [ El.height (El.fillPortion 3) ]
               , El.text ("Podávam hráčovi " ++ String.fromInt stav.hrac) |> tlacidlo (El.rgb 0.4 0.8 0) (Just Podal)
               ]
