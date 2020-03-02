@@ -467,10 +467,6 @@ view model =
   let
     stav =
       List.foldl vykonaj novyStav model.log
-    na =
-      smer stav
-    najdi =
-      policko stav.mapa
     aktivny =
       if model.faza == Zaver then
         modBy stav.hracov (stav.hrac - 1)
