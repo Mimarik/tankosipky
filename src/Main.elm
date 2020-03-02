@@ -76,7 +76,7 @@ type alias Hrac =
 
 type Faza
   = Podanie
-  | Dumanie
+  | Dumanie Policko
   | Zaver
   | Konfiguracia Int Int Int
 
@@ -367,6 +367,8 @@ type Msg
   | Podal
   | Tahal Tah
   | Konfiguroval Int Int Int
+  | Potvrdil Tah
+  | Vybral Policko
 
 
 type Tah
@@ -380,13 +382,17 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
   ( case msg of
     Prijal ->
-      { model | faza = Dumanie }
+      { model | faza = Dumanie Nic }
+    Potvrdil t ->
+      { model | log = model.log ++ [ t ] }
     Tahal t ->
-      { model | log = model.log ++ [ t ], faza = if model.faza == Dumanie then Zaver else model.faza }
+      { model | log = model.log ++ [ t ], faza = Zaver }
     Podal ->
       { model | faza = Podanie }
     Konfiguroval n s v ->
       { model | faza = Konfiguracia n s v }
+    Vybral obj ->
+      { model | faza = Dumanie obj }
   , Cmd.none
   )
 
@@ -452,7 +458,7 @@ view model =
           -- voľba počtu hráčov
           El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
             [ tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval (n + 1) s v) (El.text "Zvýšiť počet hráčov")
-            , tlacidlo (El.rgb 0.1 0.1 0.1) (Zrod n |> Tahal) (El.text (String.fromInt n))
+            , tlacidlo (El.rgb 0.1 0.1 0.1) (Zrod n |> Potvrdil) (El.text (String.fromInt n))
             , tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval (max 1 (n - 1)) s v) (El.text "Znížiť počet hráčov")
             ]
         else if stav.sirka == 0 then
@@ -460,12 +466,12 @@ view model =
           El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
             [ El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
               [ tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval n (s + 1) v) (El.text "Zvýšiť šírku mapy")
-              , tlacidlo (El.rgb 0.1 0.1 0.1) (Zmapuj s v |> Tahal) (El.text (String.fromInt s))
+              , tlacidlo (El.rgb 0.1 0.1 0.1) (Zmapuj s v |> Potvrdil) (El.text (String.fromInt s))
               , tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval n (max 1 (s - 1)) v) (El.text "Znížiť šírku mapy")
               ]
             , El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
               [ tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval n s (v + 1)) (El.text "Zvýšiť výšku mapy")
-              , tlacidlo (El.rgb 0.1 0.1 0.1) (Zmapuj s v |> Tahal) (El.text (String.fromInt v))
+              , tlacidlo (El.rgb 0.1 0.1 0.1) (Zmapuj s v |> Potvrdil) (El.text (String.fromInt v))
               , tlacidlo (El.rgb 0.1 0.1 0.1) (Konfiguroval n s (max 1 (v - 1))) (El.text "Znížiť výšku mapy")
               ]
             ]
@@ -475,7 +481,7 @@ view model =
       Podanie ->
         -- nový hráč prichádza na ťah
         El.text ("Som hráč " ++ String.fromInt aktivny) |> tlacidlo (El.rgb 0 0.6 1) Prijal
-      Dumanie ->
+      Dumanie obj ->
         case polohaNaTahu of
           Nothing ->
             -- umiestni sa na mape
@@ -504,6 +510,11 @@ view model =
                 [ El.el [ El.width El.fill ] El.none
                 , p |> na Juh |> najdi |> ukaz |> tlacidlo (El.rgb 0.5 0.5 0.5) (Tahal (Chod Juh))
                 , El.el [ El.width El.fill ] El.none
+                ]
+              , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+                [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+                  [ tlacidlo (El.rgb 0.8 0.4 0) (Vybral Kamen) (ukaz Kamen)
+                  ]
                 ]
               ]
       Zaver ->
