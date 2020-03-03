@@ -89,12 +89,12 @@ init _ =
 novyHrac : Hrac
 novyHrac =
   { zivot = 3
-  , kamen = 10
-  , sipkaS = True
-  , sipkaV = True
-  , sipkaJ = True
-  , sipkaZ = True
-  , mina = 4
+  , kamen = 0
+  , sipkaS = False
+  , sipkaV = False
+  , sipkaJ = False
+  , sipkaZ = False
+  , mina = 0
   , veza = False
   , zrkadloV = False
   , zrkadloZ = False
@@ -286,6 +286,19 @@ spotrebuj obj hrac =
       hrac
 
 
+oziv : Hrac -> Hrac
+oziv h =
+  case h.zivot of
+    3 ->
+      { h | zivot = 2, kamen = 10, sipkaS = True, sipkaJ = True, sipkaV = True, sipkaZ = True, mina = 4 }
+    2 ->
+      { h | zivot = 1, veza = True, zrkadloV = True, zrkadloZ = True, radar = True }
+    1 ->
+      { h | zivot = 0, laser = True, tank = True, sonar = True }
+    _ ->
+      h
+
+
 vykonaj : Tah -> Stav -> Stav
 vykonaj t s =
   let
@@ -298,7 +311,7 @@ vykonaj t s =
       Zrod n ->
         { s | hracov = n, hraci = Array.repeat n novyHrac }
       UmiestniSa p ->
-        s |> poloz p (Clovek s.hrac) 0 |> dalsi
+        { s | hraci = Array.set s.hrac (Array.get s.hrac s.hraci |> Maybe.withDefault novyHrac |> oziv) s.hraci } |> poloz p (Clovek s.hrac) 0 |> dalsi
       Chod kam ->
         case policko s.mapa (smer s kam sur) of
           Kamen ->
