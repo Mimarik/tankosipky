@@ -585,7 +585,17 @@ view model =
                   ] ++
                   List.map (\(o, c) -> tInventara obj o c)
                     [ (Sipka Zapad, hracNT.sipkaZ) , (Sipka Juh, hracNT.sipkaJ), (Sipka Sever, hracNT.sipkaS), (Sipka Vychod, hracNT.sipkaV) ] ++
-                  [ El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ] [] ]
+                  [ El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+                    [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+                      (List.map
+                        (\i ->
+                          El.el [El.width El.fill, El.height El.fill, Bg.color (if hracNT.mina >= i then El.rgb 1 1 1 else El.rgb 0.5 0.5 0.5) ] El.none
+                        )
+                        (List.range 1 4)
+                      )
+                    , tInventara obj Mina (hracNT.mina > 0)
+                    ]
+                  ]
                 ]
               ]
       Zaver ->
