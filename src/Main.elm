@@ -257,6 +257,35 @@ vyprazdni p mapa =
     ) mapa
 
 
+spotrebuj : Policko -> Hrac -> Hrac
+spotrebuj obj hrac =
+  case obj of
+    Sipka Sever ->
+      { hrac | sipkaS = False }
+    Sipka Juh ->
+      { hrac | sipkaJ = False }
+    Sipka Vychod ->
+      { hrac | sipkaV = False }
+    Sipka Zapad ->
+      { hrac | sipkaZ = False }
+    Tank _ ->
+      { hrac | tank = False }
+    Mina ->
+      { hrac | mina = hrac.mina - 1 }
+    Kamen ->
+      { hrac | kamen = hrac.kamen - 1 }
+    Laser _ ->
+      { hrac | laser = False }
+    Veza _ ->
+      { hrac | veza = False }
+    Zrkadlo Vzostupny _ _ ->
+      { hrac | zrkadloV = False }
+    Zrkadlo Zostupny _ _ ->
+      { hrac | zrkadloZ = False }
+    _ ->
+      hrac
+
+
 vykonaj : Tah -> Stav -> Stav
 vykonaj t s =
   let
@@ -284,6 +313,8 @@ vykonaj t s =
             { s | mapa = nastav (smer s kam sur) Nic s.mapa } |> dalsi
           _ ->
             { s | mapa = s.mapa |> vyprazdni sur } |> poloz (smer s kam sur) (Clovek s.hrac) 0 |> dalsi
+      Umiestni co kam ->
+        { s | hraci = Array.set s.hrac (Array.get s.hrac s.hraci |> Maybe.withDefault novyHrac |> spotrebuj co) s.hraci } |> poloz (smer s kam sur) co 0 |> dalsi
 
 
 dalsi : Stav -> Stav
@@ -374,6 +405,7 @@ type Tah
   | Zrod Int
   | UmiestniSa Poloha
   | Chod Smer
+  | Umiestni Policko Smer
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -569,7 +601,7 @@ view model =
           Just p ->
             -- normálny ťah živého hráča
             El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-              [ vyhlad stav p (Chod >> Tahal >> Just) [ El.height (El.fillPortion 3) ]
+              [ vyhlad stav p (Just << Tahal << if obj == Nic then Chod else Umiestni obj) [ El.height (El.fillPortion 3) ]
               , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                 [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ] <|
                   [ El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
