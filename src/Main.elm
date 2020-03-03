@@ -519,9 +519,9 @@ view model =
         modBy stav.hracov (stav.hrac - 1)
       else
         stav.hrac
-    hracNaTahu =
+    hracNT =
       stav.hraci |> Array.get aktivny |> Maybe.withDefault novyHrac
-    polohaNaTahu =
+    polohaNT =
       polohaHraca stav aktivny
   in
     El.layout [ Font.center, Bg.color (El.rgb 0 0 0) ] <|
@@ -555,7 +555,7 @@ view model =
         -- nový hráč prichádza na ťah
         El.text ("Som hráč " ++ String.fromInt aktivny) |> tlacidlo (El.rgb 0 0.6 1) (Just Prijal)
       Dumanie obj ->
-        case polohaNaTahu of
+        case polohaNT of
           Nothing ->
             -- umiestni sa na mape
             List.range 0 (stav.vyska - 1)
@@ -571,22 +571,25 @@ view model =
             El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
               [ vyhlad stav p (Chod >> Tahal >> Just) [ El.height (El.fillPortion 3) ]
               , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-                [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+                [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ] <|
                   [ El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                     [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                       (List.map
                         (\i ->
-                          El.el [El.width El.fill, El.height El.fill, Bg.color (if hracNaTahu.kamen >= i then El.rgb 1 1 1 else El.rgb 0.5 0.5 0.5) ] El.none
-                          )
+                          El.el [El.width El.fill, El.height El.fill, Bg.color (if hracNT.kamen >= i then El.rgb 1 1 1 else El.rgb 0.5 0.5 0.5) ] El.none
+                        )
                         (List.range 1 10)
                       )
-                    , tInventara obj Kamen (hracNaTahu.kamen > 0)
+                    , tInventara obj Kamen (hracNT.kamen > 0)
                     ]
-                  ]
+                  ] ++
+                  List.map (\(o, c) -> tInventara obj o c)
+                    [ (Sipka Zapad, hracNT.sipkaZ) , (Sipka Juh, hracNT.sipkaJ), (Sipka Sever, hracNT.sipkaS), (Sipka Vychod, hracNT.sipkaV) ] ++
+                  [ El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ] [] ]
                 ]
               ]
       Zaver ->
-        case polohaNaTahu of
+        case polohaNT of
           Nothing ->
             -- TODO: hráč medzičasom opäť zomrel
             miestodrzitel "Obrazovka pre hráča mŕtveho na konci svojho ťahu"
