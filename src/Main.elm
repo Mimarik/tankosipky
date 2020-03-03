@@ -420,7 +420,6 @@ tlacidlo farba msg obsah =
     , El.height El.fill
     , Font.color (El.rgb 1 1 1)
     , Bg.color farba
-    , El.pointer
     , El.focused [ Border.color (El.rgba 0 0 0 0) ]
     ]
     { onPress = msg
@@ -502,6 +501,14 @@ vyhlad stav poloha spravaPre atr =
     ]
 
 
+tInventara : Policko -> Policko -> Bool -> El.Element Msg
+tInventara obj vyber akt =
+  tlacidlo
+    (if obj /= vyber && akt then El.rgb 0.8 0.4 0 else El.rgb 0.5 0.5 0.5)
+    (Vybral (if obj /= vyber && akt then vyber else Nic) |> Just)
+    (ukaz vyber)
+
+
 view : Model -> Html.Html Msg
 view model =
   let
@@ -565,7 +572,16 @@ view model =
               [ vyhlad stav p (Chod >> Tahal >> Just) [ El.height (El.fillPortion 3) ]
               , El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
                 [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
-                  [ tlacidlo (El.rgb 0.8 0.4 0) (Vybral Kamen |> Just) (ukaz Kamen)
+                  [ El.column [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+                    [ El.row [ El.width El.fill, El.height El.fill, El.spacing 8 ]
+                      (List.map
+                        (\i ->
+                          El.el [El.width El.fill, El.height El.fill, Bg.color (if hracNaTahu.kamen >= i then El.rgb 1 1 1 else El.rgb 0.5 0.5 0.5) ] El.none
+                          )
+                        (List.range 1 10)
+                      )
+                    , tInventara obj Kamen (hracNaTahu.kamen > 0)
+                    ]
                   ]
                 ]
               ]
