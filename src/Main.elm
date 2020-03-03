@@ -140,126 +140,128 @@ nastav p o mapa =
   Array.set p.x (Array.get p.x mapa |> Maybe.withDefault Array.empty |> Array.set p.y o) mapa
 
 
+poloz : Poloha -> Policko -> Int -> Stav -> Stav
+poloz p obj pokus s =
+  if pokus > s.sirka * s.vyska then
+    s
+  else
+    case (obj, policko s.mapa p) of
+        (Nic, _) ->
+          s
+        (_, Sipka kam) ->
+          s |> poloz (p |> smer s kam) obj (pokus + 1)
+        (Sipka kam, _) ->
+          { s | mapa = s.mapa |> nastav p obj } |> poloz (p |> smer s kam) (policko s.mapa p) 0
+        (_, Tank _) ->
+          s
+        (Tank _, _) ->
+          { s | mapa = s.mapa |> nastav p obj }
+        (Mina, Gula g) ->
+          { s | mapa = s.mapa |> nastav p (MinaGula g) }
+        (MinaGula _, Gula g) ->
+          { s | mapa = s.mapa |> nastav p (MinaGula g) }
+        (MinaLuc _, Gula g) ->
+          { s | mapa = s.mapa |> nastav p (MinaGula g) }
+        (_, Gula _) ->
+          s
+        (Mina, MinaGula g) ->
+          { s | mapa = s.mapa |> nastav p (Gula g) }
+        (MinaGula _, MinaGula g) ->
+          { s | mapa = s.mapa |> nastav p (Gula g) }
+        (MinaLuc _, MinaGula g) ->
+          { s | mapa = s.mapa |> nastav p (Gula g) }
+        (_, MinaGula _) ->
+          s
+        (Gula g, Mina) ->
+          { s | mapa = s.mapa |> nastav p (MinaGula g) }
+        (Gula _, _) ->
+          { s | mapa = s.mapa |> nastav p obj }
+        (MinaGula g, Mina) ->
+          { s | mapa = s.mapa |> nastav p (Gula g) }
+        (MinaGula _, _) ->
+          { s | mapa = s.mapa |> nastav p obj  }
+        (Luc l, Mina) ->
+          { s | mapa = s.mapa |> nastav p (MinaLuc l) }
+        (_, Mina) ->
+          { s | mapa = s.mapa |> nastav p Nic }
+        (Luc _, MinaLuc _) ->
+          s
+        (_, MinaLuc l) ->
+          { s | mapa = s.mapa |> nastav p (Luc l) }
+        (Mina, Nic) ->
+          { s | mapa = s.mapa |> nastav p obj }
+        (Mina, Luc l) ->
+          { s | mapa = s.mapa |> nastav p (MinaLuc l) }
+        (Mina, _) ->
+          { s | mapa = s.mapa |> nastav p Nic }
+        (MinaLuc _, Nic) ->
+          { s | mapa = s.mapa |> nastav p obj }
+        (MinaLuc _, Luc _) ->
+          { s | mapa = s.mapa |> nastav p obj }
+        (MinaLuc l, _) ->
+          { s | mapa = s.mapa |> nastav p (Luc l) }
+        (_, Kamen) ->
+          s
+        (Kamen, _) ->
+          { s | mapa = s.mapa |> nastav p obj }
+        (_, Laser _) ->
+          s
+        (Laser _, _) ->
+          { s | mapa = s.mapa |> nastav p obj }
+        (_, Veza _) ->
+          s
+        (Veza _, _) ->
+          { s | mapa = s.mapa |> nastav p obj }
+        (Zrkadlo _ _ _, Luc _) ->
+          { s | mapa = s.mapa |> nastav p obj }
+        (_, Luc _) ->
+          s
+        (Luc _, Zrkadlo _ _ _) ->
+          s
+        (Luc _, _) ->
+          { s | mapa = s.mapa |> nastav p obj }
+        (_, Clovek _) ->
+          s
+        (Clovek _, _) ->
+          { s | mapa = s.mapa |> nastav p obj }
+        (Zrkadlo _ _ _, Zrkadlo _ _ _) ->
+          s
+        (Zrkadlo _ _ _, Nic) ->
+          { s | mapa = s.mapa |> nastav p obj }
+
+
+vyprazdni : Poloha -> Array.Array (Array.Array Policko) -> Array.Array (Array.Array Policko)
+vyprazdni p mapa =
+  Array.set p.x
+    (Array.get p.x mapa |> Maybe.withDefault Array.empty |> Array.set p.y
+      (case mapa |> Array.get p.x |> Maybe.withDefault Array.empty |> Array.get p.y |> Maybe.withDefault Nic of
+        Nic ->
+          Nic
+        Tank _ ->
+          Nic
+        Gula _ ->
+          Nic
+        MinaGula _ ->
+          Mina
+        MinaLuc _ ->
+          Mina
+        Luc _ ->
+          Nic
+        Clovek _ ->
+          Nic
+        Zrkadlo z _ _ ->
+          Zrkadlo z False False
+        x ->
+          x
+      )
+    ) mapa
+
+
 vykonaj : Tah -> Stav -> Stav
 vykonaj t s =
   let
-    poloz obj p pokus mapa =
-      let
-        staryobj =
-          policko mapa p
-      in
-        if pokus > s.sirka * s.vyska then
-          mapa
-        else
-          case (obj, staryobj) of
-              (Nic, _) ->
-                mapa
-              (_, Sipka kam) ->
-                mapa |> poloz obj (p |> smer s kam) (pokus + 1)
-              (Sipka kam, _) ->
-                mapa |> nastav p obj |> poloz staryobj (p |> smer s kam) 0
-              (_, Tank _) ->
-                mapa
-              (Tank _, _) ->
-                mapa |> nastav p obj
-              (Mina, Gula g) ->
-                mapa |> nastav p (MinaGula g)
-              (MinaGula _, Gula g) ->
-                mapa |> nastav p  (MinaGula g)
-              (MinaLuc _, Gula g) ->
-                mapa |> nastav p (MinaGula g)
-              (_, Gula _) ->
-                mapa
-              (Mina, MinaGula g) ->
-                mapa |> nastav p (Gula g)
-              (MinaGula _, MinaGula g) ->
-                mapa |> nastav p (Gula g)
-              (MinaLuc _, MinaGula g) ->
-                mapa |> nastav p (Gula g)
-              (_, MinaGula _) ->
-                mapa
-              (Gula g, Mina) ->
-                mapa |> nastav p (MinaGula g)
-              (Gula _, _) ->
-                mapa |> nastav p obj
-              (MinaGula g, Mina) ->
-                mapa |> nastav p (Gula g)
-              (MinaGula _, _) ->
-                mapa |> nastav p obj 
-              (Luc l, Mina) ->
-                mapa |> nastav p (MinaLuc l)
-              (_, Mina) ->
-                mapa |> nastav p Nic
-              (Luc _, MinaLuc _) ->
-                mapa
-              (_, MinaLuc l) ->
-                mapa |> nastav p (Luc l)
-              (Mina, Nic) ->
-                mapa |> nastav p obj
-              (Mina, Luc l) ->
-                mapa |> nastav p (MinaLuc l)
-              (Mina, _) ->
-                mapa |> nastav p Nic
-              (MinaLuc _, Nic) ->
-                mapa |> nastav p obj
-              (MinaLuc _, Luc _) ->
-                mapa |> nastav p obj
-              (MinaLuc l, _) ->
-                mapa |> nastav p (Luc l)
-              (_, Kamen) ->
-                mapa
-              (Kamen, _) ->
-                mapa |> nastav p obj
-              (_, Laser _) ->
-                mapa
-              (Laser _, _) ->
-                mapa |> nastav p obj
-              (_, Veza _) ->
-                mapa
-              (Veza _, _) ->
-                mapa |> nastav p obj
-              (Zrkadlo _ _ _, Luc _) ->
-                mapa |> nastav p obj
-              (_, Luc _) ->
-                mapa
-              (Luc _, Zrkadlo _ _ _) ->
-                mapa
-              (Luc _, _) ->
-                mapa |> nastav p obj
-              (_, Clovek _) ->
-                mapa
-              (Clovek _, _) ->
-                mapa |> nastav p obj
-              (Zrkadlo _ _ _, Zrkadlo _ _ _) ->
-                mapa
-              (Zrkadlo _ _ _, Nic) ->
-                mapa |> nastav p obj
     sur =
       polohaHraca s s.hrac |> Maybe.withDefault (Poloha 0 0)
-    vyprazdni p mapa =
-      Array.set p.x
-        (Array.get p.x mapa |> Maybe.withDefault Array.empty |> Array.set p.y
-          (case mapa |> Array.get p.x |> Maybe.withDefault Array.empty |> Array.get p.y |> Maybe.withDefault Nic of
-            Nic ->
-              Nic
-            Tank _ ->
-              Nic
-            Gula _ ->
-              Nic
-            MinaGula _ ->
-              Mina
-            MinaLuc _ ->
-              Mina
-            Luc _ ->
-              Nic
-            Clovek _ ->
-              Nic
-            Zrkadlo z _ _ ->
-              Zrkadlo z False False
-            x ->
-              x
-          )
-        ) mapa
   in
     case t of
       Zmapuj sirka vyska ->
@@ -267,25 +269,21 @@ vykonaj t s =
       Zrod n ->
         { s | hracov = n, hraci = Array.repeat n novyHrac }
       UmiestniSa p ->
-        { s | mapa = poloz (Clovek s.hrac) p 0 s.mapa } |> dalsi
+        s |> poloz p (Clovek s.hrac) 0 |> dalsi
       Chod kam ->
-        let
-          p =
-            smer s kam sur
-        in
-          case policko s.mapa p of
-            Kamen ->
-              { s | mapa = nastav p Nic s.mapa } |> dalsi
-            Laser _ ->
-              { s | mapa = nastav p Nic s.mapa } |> dalsi
-            Veza _ ->
-              { s | mapa = nastav p Nic s.mapa } |> dalsi
-            Clovek _ ->
-              { s | mapa = nastav p Nic s.mapa } |> dalsi
-            Zrkadlo _ _ _ ->
-              { s | mapa = nastav p Nic s.mapa } |> dalsi
-            _ ->
-              { s | mapa = s.mapa |> vyprazdni sur |> poloz (Clovek s.hrac) (smer s kam sur) 0 } |> dalsi
+        case policko s.mapa (smer s kam sur) of
+          Kamen ->
+            { s | mapa = nastav (smer s kam sur) Nic s.mapa } |> dalsi
+          Laser _ ->
+            { s | mapa = nastav (smer s kam sur) Nic s.mapa } |> dalsi
+          Veza _ ->
+            { s | mapa = nastav (smer s kam sur) Nic s.mapa } |> dalsi
+          Clovek _ ->
+            { s | mapa = nastav (smer s kam sur) Nic s.mapa } |> dalsi
+          Zrkadlo _ _ _ ->
+            { s | mapa = nastav (smer s kam sur) Nic s.mapa } |> dalsi
+          _ ->
+            { s | mapa = s.mapa |> vyprazdni sur } |> poloz (smer s kam sur) (Clovek s.hrac) 0 |> dalsi
 
 
 dalsi : Stav -> Stav
